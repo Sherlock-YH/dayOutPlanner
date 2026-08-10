@@ -22,14 +22,21 @@ export default function AuthCard({ apiBase, onAuthSuccess }: AuthCardProps) {
     e.preventDefault();
     setAuthError(null);
 
-    // 1. Front-end validation for Signup
+    // Front-end validation for Signup
     if (isSignup) {
       if (authPassword !== confirmPassword) {
         setAuthError("Passwords do not match.");
         return;
       }
-      if (authPassword.length < 8) {
-        setAuthError("Password must be at least 8 characters long.");
+
+      const hasMinLength = authPassword.length >= 8;
+      const hasLetter = /[a-zA-Z]/.test(authPassword);
+      const hasNumber = /[0-9]/.test(authPassword);
+
+      if (!hasMinLength || !hasLetter || !hasNumber) {
+        setAuthError(
+          "Password must be at least 8 characters long and include both letters and numbers."
+        );
         return;
       }
     }
@@ -112,7 +119,7 @@ export default function AuthCard({ apiBase, onAuthSuccess }: AuthCardProps) {
           </div>
         )}
 
-        <form onSubmit={handleAuthSubmit} className="space-y-4">
+        <form onSubmit={handleAuthSubmit} autoComplete="off" className="space-y-4">
           <div className="space-y-1.5 text-left">
             <label className="text-xs font-semibold text-slate-400">
               Email Address
@@ -121,6 +128,7 @@ export default function AuthCard({ apiBase, onAuthSuccess }: AuthCardProps) {
               type="email"
               required
               disabled={isLoading}
+              autoComplete={isSignup ? "off" : "email"}
               value={authEmail}
               onChange={(e) => setAuthEmail(e.target.value)}
               placeholder="you@example.com"
@@ -136,11 +144,17 @@ export default function AuthCard({ apiBase, onAuthSuccess }: AuthCardProps) {
               type="password"
               required
               disabled={isLoading}
+              autoComplete={isSignup ? "new-password" : "current-password"}
               value={authPassword}
               onChange={(e) => setAuthPassword(e.target.value)}
               placeholder="••••••••"
               className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:ring-2 focus:ring-emerald-500 outline-none disabled:opacity-50"
             />
+            {isSignup && (
+              <p className="text-[13px] text-slate-500 pt-0.5 text-white">
+                Must be at least 8 characters with letters & numbers.
+              </p>
+            )}
           </div>
 
           {/* Confirm Password Field (Signup only) */}
@@ -153,6 +167,7 @@ export default function AuthCard({ apiBase, onAuthSuccess }: AuthCardProps) {
                 type="password"
                 required
                 disabled={isLoading}
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
@@ -160,7 +175,6 @@ export default function AuthCard({ apiBase, onAuthSuccess }: AuthCardProps) {
               />
             </div>
           )}
-
           <button
             type="submit"
             disabled={isLoading}
@@ -175,7 +189,7 @@ export default function AuthCard({ apiBase, onAuthSuccess }: AuthCardProps) {
             type="button"
             disabled={isLoading}
             onClick={toggleMode}
-            className="text-xs text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50"
+            className="text-s font-bold text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer disabled:opacity-50"
           >
             {isSignup
               ? "Already have an account? Log in"
