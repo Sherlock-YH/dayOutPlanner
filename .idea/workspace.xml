@@ -6,9 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="38107803-19b5-4aa9-91eb-727cdc0d235b" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/auth.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/helperFunction.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/helperFunction.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/app/page.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/app/page.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/components/AuthCard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/components/AuthCard.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -38,21 +36,22 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python tests.Python tests for test_helperFunction.TestTaxiFareCalculator.test_short_distance_returns_minimum_fare.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests for test_routing.TestRoutingEngine.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_helperFunction.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_routing.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python tests.Python tests in test_same_building_routing.py.executor&quot;: &quot;Run&quot;,
-    &quot;Python.main.executor&quot;: &quot;Run&quot;,
-    &quot;Python.onemap_route.executor&quot;: &quot;Run&quot;,
-    &quot;Python.poc.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python tests.Python tests for test_helperFunction.TestTaxiFareCalculator.test_short_distance_returns_minimum_fare.executor": "Run",
+    "Python tests.Python tests for test_routing.TestRoutingEngine.executor": "Run",
+    "Python tests.Python tests in test_helperFunction.py.executor": "Run",
+    "Python tests.Python tests in test_routing.py.executor": "Run",
+    "Python tests.Python tests in test_same_building_routing.py.executor": "Run",
+    "Python.main.executor": "Run",
+    "Python.onemap_route.executor": "Run",
+    "Python.poc.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "settings.editor.selected.configurable": "FeaturesTrainerSettingsPanel"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/frontend/app" />
@@ -535,7 +534,15 @@
       <option name="project" value="LOCAL" />
       <updated>1786352798081</updated>
     </task>
-    <option name="localTasksCounter" value="45" />
+    <task id="LOCAL-00045" summary="Add OTP Verification Features">
+      <option name="closed" value="true" />
+      <created>1786438989320</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1786438989320</updated>
+    </task>
+    <option name="localTasksCounter" value="46" />
     <servers />
   </component>
   <component name="UnknownFeatures">
@@ -553,7 +560,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Add autocomplete address for start location" />
     <MESSAGE value="bug fixing" />
     <MESSAGE value="Rearranging files prepared for deployment" />
     <MESSAGE value="add itinerary.ts" />
@@ -578,6 +584,7 @@
     <MESSAGE value="Rearrange the title positioning" />
     <MESSAGE value="Update directory arrangement and imporve the sign-up page" />
     <MESSAGE value="Add checker for password when signing up" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add checker for password when signing up" />
+    <MESSAGE value="Add OTP Verification Features" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add OTP Verification Features" />
   </component>
 </project>

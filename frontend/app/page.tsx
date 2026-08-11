@@ -42,6 +42,8 @@ export default function Home() {
     localStorage.removeItem("token");
     setToken(null);
     setItinerary(null);
+    setError(null);
+    setActiveStopNumber(null);
   };
 
   const handleSelectStop = (stopNumber: number) => {
