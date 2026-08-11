@@ -7,9 +7,11 @@ import resend
 # Initialize Resend API Key
 resend.api_key = os.getenv("RESEND_API_KEY", "")
 
+
 def generate_otp() -> str:
     """Generates a random 6-digit numeric string."""
     return f"{random.randint(100000, 999999)}"
+
 
 def send_otp_email(to_email: str, code: str):
     """Sends an OTP email via Resend or logs it to the console if no key is set."""
@@ -19,9 +21,10 @@ def send_otp_email(to_email: str, code: str):
         print(f"==========================================\n")
         return
 
-    resend.Emails.send({
+    # Explicitly type params as resend.Emails.SendParams and ensure "to" is a list
+    params: resend.Emails.SendParams = {
         "from": "One Day Out <onboarding@resend.dev>",
-        "to": to_email,
+        "to": [to_email],  # Must be a list of strings
         "subject": "Your Verification Code - One Day Out Planner",
         "html": f"""
             <div style="font-family: sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
@@ -30,14 +33,16 @@ def send_otp_email(to_email: str, code: str):
                 <h1 style="font-size: 36px; letter-spacing: 6px; color: #34d399; margin: 20px 0;">{code}</h1>
                 <p style="color: #94a3b8; font-size: 12px;">This code will expire in 10 minutes.</p>
             </div>
-        """
-    })
+        """,
+    }
+
+    resend.Emails.send(params)
 
 
 def calculate_sg_taxi_fare(
-        distance_meters: int,
-        duration_seconds: int,
-        departure_datetime: datetime | None = None
+    distance_meters: int,
+    duration_seconds: int,
+    departure_datetime: datetime | None = None,
 ) -> dict:
     """
     Calculates estimated Singapore Taxi / Ride-Hailing (Grab/Gojek) fare range
@@ -110,121 +115,3 @@ def calculate_sg_taxi_fare(
         "max_fare_sgd": int(max_fare),
         "formatted_estimate": f"~{drive_mins} mins (${int(min_fare)}-${int(max_fare)} SGD)",
     }
-
-
-def generate_otp() -> str:
-    return f"{random.randint(100000, 999999)}"
-
-
-def send_otp_email(to_email: str, code: str):
-    # Fallback to printing in console if no API key is provided during local testing
-    if not resend.api_key:
-        print(f"\n==========================================")
-        print(f"🔑 [LOCAL OTP CODE FOR {to_email}]: {code}")
-        print(f"==========================================\n")
-        return
-
-    resend.Emails.send({
-        "from": "One Day Out ",
-        "to": to_email,
-        "subject": "Your Verification Code - One Day Out Planner",
-        "html": f"""
-
-                🇸🇬 One Day Out Planner
-                Use the following 6-digit code to complete your registration:
-                {code}
-                This code will expire in 10 minutes.
-
-        """
-    })
-
-
-# --- SIGNUP ---
-@router.post("/signup")
-def signup(user_data: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(UserDB).filter(UserDB.email == user_data.email).first()
-
-    if existing_user:
-        if existing_user.is_verified:
-            raise HTTPException(status_code=400, detail="Email already registered. Please log in.")
-        # If user exists but is not verified, allow re-registration / updating password
-        otp_code = generate_otp()
-        existing_user.hashed_password = get_password_hash(user_data.password)
-        existing_user.verification_code = otp_code
-        existing_user.code_expires_at = datetime.utcnow() + timedelta(minutes=10)
-        db.commit()
-        send_otp_email(user_data.email, otp_code)
-        return {"message": "Verification code resent to your email."}
-
-    otp_code = generate_otp()
-    expires_at = datetime.utcnow() + timedelta(minutes=10)
-
-    new_user = UserDB(
-        email=user_data.email,
-        hashed_password=get_password_hash(user_data.password),
-        is_verified=False,
-        verification_code=otp_code,
-        code_expires_at=expires_at
-    )
-    db.add(new_user)
-    db.commit()
-
-    send_otp_email(user_data.email, otp_code)
-    return {"message": "Verification code sent to your email."}
-
-
-# --- VERIFY OTP ---
-@router.post("/verify-otp")
-def verify_otp(data: VerifyOTPRequest, db: Session = Depends(get_db)):
-    user = db.query(UserDB).filter(UserDB.email == data.email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
-
-    if user.is_verified:
-        return {"message": "Account already verified."}
-
-    if user.verification_code != data.code.strip():
-        raise HTTPException(status_code=400, detail="Invalid verification code.")
-
-    if datetime.utcnow() > user.code_expires_at:
-        raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
-
-    user.is_verified = True
-    user.verification_code = None
-    user.code_expires_at = None
-    db.commit()
-
-    return {"message": "Email verified successfully."}
-
-
-# --- RESEND OTP ---
-@router.post("/resend-otp")
-def resend_otp(data: ResendOTPRequest, db: Session = Depends(get_db)):
-    user = db.query(UserDB).filter(UserDB.email == data.email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
-
-    if user.is_verified:
-        raise HTTPException(status_code=400, detail="Account is already verified.")
-
-    otp_code = generate_otp()
-    user.verification_code = otp_code
-    user.code_expires_at = datetime.utcnow() + timedelta(minutes=10)
-    db.commit()
-
-    send_otp_email(data.email, otp_code)
-    return {"message": "A new verification code has been sent."}
-
-
-# --- LOGIN (Enforce verification check) ---
-@router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(UserDB).filter(UserDB.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=400, detail="Incorrect email or password.")
-
-    if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Email not verified. Please verify your email first.")
-
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
