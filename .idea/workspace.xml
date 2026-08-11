@@ -6,6 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="38107803-19b5-4aa9-91eb-727cdc0d235b" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.venv/bin/pip-3.12" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.venv/lib/python3.12/site-packages/pip-23.2.1.dist-info/AUTHORS.txt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.venv/lib/python3.12/site-packages/pip-23.2.1.dist-info/INSTALLER" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.venv/lib/python3.12/site-packages/pip-23.2.1.dist-info/LICENSE.txt" beforeDir="false" />
@@ -1003,7 +1004,15 @@
       <option name="project" value="LOCAL" />
       <updated>1786439481750</updated>
     </task>
-    <option name="localTasksCounter" value="47" />
+    <task id="LOCAL-00047" summary="Fix helperFunction error">
+      <option name="closed" value="true" />
+      <created>1786439798782</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1786439798782</updated>
+    </task>
+    <option name="localTasksCounter" value="48" />
     <servers />
   </component>
   <component name="UnknownFeatures">
@@ -1021,7 +1030,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="bug fixing" />
     <MESSAGE value="Rearranging files prepared for deployment" />
     <MESSAGE value="add itinerary.ts" />
     <MESSAGE value="add gitignore" />
@@ -1046,6 +1054,7 @@
     <MESSAGE value="Update directory arrangement and imporve the sign-up page" />
     <MESSAGE value="Add checker for password when signing up" />
     <MESSAGE value="Add OTP Verification Features" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add OTP Verification Features" />
+    <MESSAGE value="Fix helperFunction error" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix helperFunction error" />
   </component>
 </project>

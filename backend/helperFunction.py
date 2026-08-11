@@ -13,30 +13,42 @@ def generate_otp() -> str:
     return f"{random.randint(100000, 999999)}"
 
 
-def send_otp_email(to_email: str, code: str):
-    """Sends an OTP email via Resend or logs it to the console if no key is set."""
-    if not resend.api_key:
-        print(f"\n==========================================")
+def send_otp_email(to_email: str, code: str) -> bool:
+    """
+    Sends an OTP email via Resend.
+    Returns True if sent successfully, False otherwise.
+    """
+    api_key = os.getenv("RESEND_API_KEY", "")
+
+    if not api_key:
+        print("⚠️ [WARNING] RESEND_API_KEY is missing!")
         print(f"🔑 [LOCAL OTP CODE FOR {to_email}]: {code}")
-        print(f"==========================================\n")
-        return
+        return False
 
-    # Explicitly type params as resend.Emails.SendParams and ensure "to" is a list
-    params: resend.Emails.SendParams = {
-        "from": "One Day Out <onboarding@resend.dev>",
-        "to": [to_email],  # Must be a list of strings
-        "subject": "Your Verification Code - One Day Out Planner",
-        "html": f"""
-            <div style="font-family: sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
-                <h2 style="color: #34d399;">🇸🇬 One Day Out Planner</h2>
-                <p>Use the following 6-digit code to complete your registration:</p>
-                <h1 style="font-size: 36px; letter-spacing: 6px; color: #34d399; margin: 20px 0;">{code}</h1>
-                <p style="color: #94a3b8; font-size: 12px;">This code will expire in 10 minutes.</p>
-            </div>
-        """,
-    }
+    resend.api_key = api_key
 
-    resend.Emails.send(params)
+    try:
+        params: resend.Emails.SendParams = {
+            "from": "One Day Out <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": "Your Verification Code - One Day Out Planner",
+            "html": f"""
+                <div style="font-family: sans-serif; padding: 20px; background-color: #0f172a; color: #f8fafc; border-radius: 12px;">
+                    <h2 style="color: #34d399;">🇸🇬 One Day Out Planner</h2>
+                    <p>Use the following 6-digit code to complete your registration:</p>
+                    <h1 style="font-size: 36px; letter-spacing: 6px; color: #34d399; margin: 20px 0;">{code}</h1>
+                    <p style="color: #94a3b8; font-size: 12px;">This code will expire in 10 minutes.</p>
+                </div>
+            """,
+        }
+        response = resend.Emails.send(params)
+        print(f"✅ Email sent successfully to {to_email}. ID: {response}")
+        return True
+
+    except Exception as e:
+        # Catch Resend API errors so the endpoint doesn't return a 500 error
+        print(f"❌ Resend API Error for {to_email}: {str(e)}")
+        return False
 
 
 def calculate_sg_taxi_fare(
