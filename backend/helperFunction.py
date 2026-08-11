@@ -29,7 +29,7 @@ def send_otp_email(to_email: str, code: str) -> bool:
 
     try:
         params: resend.Emails.SendParams = {
-            "from": "One Day Out <onboarding@resend.dev>",
+            "from": "One Day Out <noreply@dayout.sherlock-yh.top>",
             "to": [to_email],
             "subject": "Your Verification Code - One Day Out Planner",
             "html": f"""
