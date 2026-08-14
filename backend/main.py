@@ -1,38 +1,60 @@
-# main.py
 import json
+import logging
 import os
 import sys
 import traceback
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from auth import router as auth_router, init_db, get_current_user, UserDB, get_current_admin_user, get_db
-from fastapi import Depends, FastAPI
-
-# Import Google Maps transit service
+from auth import (
+    UserDB,
+    get_current_admin_user,
+    get_current_user,
+    get_db,
+    init_db,
+    router as auth_router,
+)
 from gmaps_service import get_transit_route_by_name
 
+# Setup Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("DayOutPlanner")
+
 # Ensure Python defaults standard I/O to UTF-8
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
-if hasattr(sys.stderr, 'reconfigure'):
-    sys.stderr.reconfigure(encoding='utf-8')
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 
 load_dotenv()
-# Initialize OpenAI explicitly using the sanitized environment variable
+
+# Initialize OpenAI explicitly
 openai_api_key = os.getenv("OPENAI_API_KEY", "").replace("\u2028", "").strip()
+if not openai_api_key:
+    logger.warning("⚠️ OPENAI_API_KEY environment variable is not set!")
 client = OpenAI(api_key=openai_api_key) if openai_api_key else OpenAI()
 
 
 # ==========================================
-# 0. Unicode-safe JSON Response
+# 0. Modern Lifespan & Response Config
 # ==========================================
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Runs once on startup
+    logger.info("Initializing database tables...")
+    init_db()
+    yield
+    # Cleanup tasks on shutdown can go here
+
+
 class UnicodeJSONResponse(JSONResponse):
     def render(self, content) -> bytes:
         return json.dumps(
@@ -44,18 +66,13 @@ class UnicodeJSONResponse(JSONResponse):
         ).encode("utf-8")
 
 
-app = FastAPI(title="DayOutPlanner API", default_response_class=UnicodeJSONResponse)
+app = FastAPI(
+    title="DayOutPlanner API",
+    default_response_class=UnicodeJSONResponse,
+    lifespan=lifespan,
+)
 
-# Initialize database tables on startup
-init_db()
-
-
-@app.on_event("startup")
-def on_startup():
-    init_db()  # Creates tables in Supabase automatically on deploy
-
-
-# Mount authentication routes (/api/auth/signup and /api/auth/login)
+# Mount authentication routes (/api/auth/*)
 app.include_router(auth_router)
 
 
@@ -85,12 +102,23 @@ app.add_middleware(
 
 
 # ==========================================
-# 2. Pydantic Schemas
+# 2. Strict Input Validation Schemas
 # ==========================================
 class PlanRequest(BaseModel):
-    prompt: str
-    start_location: str = "Marina Bay Sands, Singapore"
-    start_time: str = "10:00 AM"
+    prompt: str = Field(
+        ...,
+        min_length=3,
+        max_length=500,
+        description="User prompt for itinerary creation",
+    )
+    start_location: str = Field(
+        "Marina Bay Sands, Singapore",
+        max_length=150,
+    )
+    start_time: str = Field(
+        "10:00 AM",
+        max_length=20,
+    )
 
 
 class ItineraryStop(BaseModel):
@@ -109,36 +137,55 @@ class ItineraryPlan(BaseModel):
 # ==========================================
 # 3. API Endpoints
 # ==========================================
-
-# Protected route requiring a valid JWT bearer token
 @app.post("/api/plan")
 @app.post("/api/plan/")
 def create_itinerary(
-        req: PlanRequest,
-        current_user: UserDB = Depends(get_current_user)
+    req: PlanRequest,
+    current_user: UserDB = Depends(get_current_user),
 ):
-    if not req.prompt.strip():
+    clean_prompt = req.prompt.strip().replace("\u2028", " ")
+    if not clean_prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
 
     try:
         return generate_itinerary_plan(
-            prompt=req.prompt.replace("\u2028", " "),
+            prompt=clean_prompt,
             start_location=req.start_location.replace("\u2028", " "),
-            start_time_str=req.start_time.replace("\u2028", " ")
+            start_time_str=req.start_time.replace("\u2028", " "),
         )
     except Exception as e:
+        # Log complete stack trace internally
+        logger.error(f"Error generating plan for user {current_user.email}: {str(e)}")
         traceback.print_exc()
-        error_msg = str(e).encode("utf-8", "ignore").decode("utf-8").replace("\u2028", " ")
-        raise HTTPException(status_code=500, detail=error_msg)
+
+        # Safe error message returned to client
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while generating your itinerary. Please try again later.",
+        )
+
+
+@app.get("/api/admin/users")
+def get_all_users(
+    current_admin: UserDB = Depends(get_current_admin_user),
+    db: Session = Depends(get_db),
+):
+    users = db.query(UserDB).all()
+    return [{"id": u.id, "email": u.email, "is_admin": u.is_admin} for u in users]
+
+
+@app.get("/")
+def health_check():
+    return {"status": "online", "message": "DayOutPlanner API is running!"}
 
 
 # ==========================================
 # 4. LLM Planner Generator
 # ==========================================
 def generate_itinerary_plan(
-        prompt: str,
-        start_location: str = "Marina Bay Sands, Singapore",
-        start_time_str: str = "09:00 AM",
+    prompt: str,
+    start_location: str = "Marina Bay Sands, Singapore",
+    start_time_str: str = "09:00 AM",
 ):
     prompt = prompt.replace("\u2028", "\n").replace("\u2029", "\n").strip()
     start_location = start_location.replace("\u2028", " ").replace("\u2029", " ").strip()
@@ -199,9 +246,9 @@ def generate_itinerary_plan(
 
         if isinstance(initial_transit, dict):
             initial_commute_mins = (
-                    initial_transit.get("drive_mins")
-                    or initial_transit.get("real_commute_mins")
-                    or 0
+                initial_transit.get("drive_mins")
+                or initial_transit.get("real_commute_mins")
+                or 0
             )
         else:
             initial_commute_mins = 0
@@ -265,9 +312,9 @@ def generate_itinerary_plan(
 
             if isinstance(transit_info, dict):
                 commute_mins = (
-                        transit_info.get("drive_mins")
-                        or transit_info.get("real_commute_mins")
-                        or 0
+                    transit_info.get("drive_mins")
+                    or transit_info.get("real_commute_mins")
+                    or 0
                 )
             else:
                 commute_mins = 0
@@ -301,20 +348,6 @@ def generate_itinerary_plan(
     }
 
 
-@app.get("/")
-def health_check():
-    return {"status": "online", "message": "DayOutPlanner API is running!"}
-
-@app.get("/api/admin/users")
-def get_all_users(current_admin: UserDB = Depends(get_current_admin_user), db: Session = Depends(get_db)):
-    # Only users with is_admin = true can access this endpoint
-    users = db.query(UserDB).all()
-    return [{"id": u.id, "email": u.email, "is_admin": u.is_admin} for u in users]
-
-
-# ==========================================
-# 5. CLI Test Runner
-# ==========================================
 if __name__ == "__main__":
     test_prompt = "A 1-day outdoor nature and indoor activities and local food tour in Singapore"
     generate_itinerary_plan(

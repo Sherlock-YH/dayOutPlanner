@@ -1,58 +1,63 @@
-import os
 from datetime import datetime, timedelta, timezone
+import os
+from typing import Optional
+
 import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from pydantic import BaseModel, EmailStr
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, create_engine
+from pydantic import BaseModel, EmailStr, Field
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
-from passlib.context import CryptContext
-import resend
-from typing import Optional
 
 # Import helper functions
 from helperFunction import generate_otp, send_otp_email
 
-# Initialize Resend API Key
-resend.api_key = os.getenv("RESEND_API_KEY", "")
+# --- ENFORCE MANDATORY SECRETS ---
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    # Fail fast if SECRET_KEY is not configured in production
+    raise RuntimeError("CRITICAL: SECRET_KEY environment variable is not set!")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-fallback-key-change-in-railway")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 1440  # 24 hours
 
-# Get DATABASE_URL from Railway environment variables
+# --- DATABASE SETUP ---
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Fix legacy prefix if necessary
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Configure engine for Transaction Mode Pooler
+# Enforce SSL and Pool configuration
 if DATABASE_URL and "6543" in DATABASE_URL:
     engine = create_engine(
         DATABASE_URL,
-        poolclass=NullPool,  # Let Supabase Pooler manage connections
-        pool_pre_ping=True
+        poolclass=NullPool,
+        pool_pre_ping=True,
+        connect_args={"sslmode": "require"},
+    )
+elif DATABASE_URL and "postgresql" in DATABASE_URL:
+    engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+        connect_args={"sslmode": "require"},
     )
 else:
     engine = create_engine(
         DATABASE_URL,
-        connect_args={"check_same_thread": False} if DATABASE_URL and "sqlite" in DATABASE_URL else {}
+        connect_args={"check_same_thread": False} if DATABASE_URL and "sqlite" in DATABASE_URL else {},
     )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
-
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
-# --- DATABASE MODEL WITH ADMIN & OTP SUPPORT ---
+# --- DATABASE MODEL ---
 class UserDB(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -62,6 +67,7 @@ class UserDB(Base):
     is_verified = Column(Boolean, default=False)
     verification_code = Column(String, nullable=True)
     code_expires_at = Column(DateTime, nullable=True)
+    failed_otp_attempts = Column(Integer, default=0)  # Counter to block brute-force attacks
 
 
 def init_db():
@@ -76,10 +82,15 @@ def get_db():
         db.close()
 
 
-# --- SCHEMAS ---
+# --- STRICT VALIDATION SCHEMAS ---
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=64,
+        description="Password must be between 8 and 64 characters",
+    )
 
 
 class Token(BaseModel):
@@ -89,23 +100,23 @@ class Token(BaseModel):
 
 class VerifyOTPRequest(BaseModel):
     email: EmailStr
-    code: str
+    code: str = Field(..., min_length=6, max_length=6)
 
 
 class ResendOTPRequest(BaseModel):
     email: EmailStr
 
 
-# --- AUTH HELPERS USING NATIVE BCRYPT ---
+# --- SECURITY HELPERS ---
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(
         plain_password.encode("utf-8"),
-        hashed_password.encode("utf-8")
+        hashed_password.encode("utf-8"),
     )
 
 
 def get_password_hash(password: str) -> str:
-    # Truncate to 72 bytes to match bcrypt limit
+    # Truncate to 72 bytes max for native bcrypt safety
     password_bytes = password.encode("utf-8")[:72]
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password_bytes, salt).decode("utf-8")
@@ -142,7 +153,7 @@ def get_current_admin_user(current_user: UserDB = Depends(get_current_user)):
     if not current_user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin privileges required for this action."
+            detail="Admin privileges required for this action.",
         )
     return current_user
 
@@ -152,31 +163,31 @@ def get_current_admin_user(current_user: UserDB = Depends(get_current_user)):
 def signup(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(UserDB).filter(UserDB.email == user.email).first()
 
-    # Generate 6-digit OTP code with 10-minute expiry
     otp_code = generate_otp()
     code_expires = datetime.now(timezone.utc) + timedelta(minutes=10)
 
     if existing_user:
         if existing_user.is_verified:
-            raise HTTPException(status_code=400, detail="Email already registered")
+            raise HTTPException(status_code=400, detail="Email is already registered.")
 
-        # Update existing unverified user with new password & OTP
+        # Refresh credentials & code for existing unverified accounts
         existing_user.hashed_password = get_password_hash(user.password)
         existing_user.verification_code = otp_code
         existing_user.code_expires_at = code_expires
+        existing_user.failed_otp_attempts = 0
         db.commit()
 
         send_otp_email(user.email, otp_code)
-        return {"status": "success", "message": "Verification code resent to your email"}
+        return {"status": "success", "message": "Verification code sent to your email"}
 
-    # Create new unverified user
-    hashed_pwd = get_password_hash(user.password)
+    # Register new unverified user
     new_user = UserDB(
         email=user.email,
-        hashed_password=hashed_pwd,
+        hashed_password=get_password_hash(user.password),
         is_verified=False,
         verification_code=otp_code,
-        code_expires_at=code_expires
+        code_expires_at=code_expires,
+        failed_otp_attempts=0,
     )
     db.add(new_user)
     db.commit()
@@ -189,27 +200,42 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
 def verify_otp(payload: VerifyOTPRequest, db: Session = Depends(get_db)):
     user = db.query(UserDB).filter(UserDB.email == payload.email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User account not found")
+        raise HTTPException(status_code=400, detail="Invalid verification request")
 
     if user.is_verified:
         return {"status": "success", "message": "Account is already verified"}
 
-    if not user.verification_code or user.verification_code != payload.code.strip():
-        raise HTTPException(status_code=400, detail="Invalid verification code")
+    # 1. Enforce Max Attempt Threshold (Brute Force Defense)
+    if user.failed_otp_attempts >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed attempts. Please request a new verification code.",
+        )
 
-    # Check code expiration
+    # 2. Check Expiration First
     if user.code_expires_at:
         expires_at = user.code_expires_at
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         if datetime.now(timezone.utc) > expires_at:
-            raise HTTPException(status_code=400, detail="Verification code has expired. Please request a new one.")
+            raise HTTPException(status_code=400, detail="Verification code expired. Please request a new one.")
 
-    # Mark user as verified
+    # 3. Validate Code
+    if not user.verification_code or user.verification_code != payload.code.strip():
+        user.failed_otp_attempts = (user.failed_otp_attempts or 0) + 1
+        db.commit()
+        remaining = 5 - user.failed_otp_attempts
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid code. {remaining} attempt(s) remaining.",
+        )
+
+    # Mark user as verified & clear OTP state
     user.is_verified = True
     user.verification_code = None
     user.code_expires_at = None
+    user.failed_otp_attempts = 0
     db.commit()
 
     return {"status": "success", "message": "Account verified successfully"}
@@ -218,19 +244,18 @@ def verify_otp(payload: VerifyOTPRequest, db: Session = Depends(get_db)):
 @router.post("/resend-otp", response_model=dict)
 def resend_otp(payload: ResendOTPRequest, db: Session = Depends(get_db)):
     user = db.query(UserDB).filter(UserDB.email == payload.email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User account not found")
-
-    if user.is_verified:
-        raise HTTPException(status_code=400, detail="Account is already verified")
+    if not user or user.is_verified:
+        # Generic message to prevent user enumeration
+        return {"status": "success", "message": "If the account exists and is unverified, a new code was sent."}
 
     otp_code = generate_otp()
     user.verification_code = otp_code
     user.code_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+    user.failed_otp_attempts = 0
     db.commit()
 
     send_otp_email(user.email, otp_code)
-    return {"status": "success", "message": "A new verification code has been sent"}
+    return {"status": "success", "message": "If the account exists and is unverified, a new code was sent."}
 
 
 @router.post("/login", response_model=Token)
@@ -243,18 +268,17 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Prevent login if email is not verified
     if not user.is_verified:
-        # Send fresh OTP when unverified login attempt occurs
         otp_code = generate_otp()
         user.verification_code = otp_code
         user.code_expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
+        user.failed_otp_attempts = 0
         db.commit()
         send_otp_email(user.email, otp_code)
 
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account not verified. A new verification code has been sent to your email."
+            detail="Account not verified. A new verification code has been sent to your email.",
         )
 
     access_token = create_access_token(data={"sub": user.email})
