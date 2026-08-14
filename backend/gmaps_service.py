@@ -218,7 +218,7 @@ def get_transit_route_by_name(
                 dist_m = step["distance"]["value"]
                 dur_mins = round(step["duration"]["value"] / 60)
 
-                if dist_m > 800:
+                if dist_m > 1010:
                     has_excessive_walk = True
 
                 if dist_m > 50:
