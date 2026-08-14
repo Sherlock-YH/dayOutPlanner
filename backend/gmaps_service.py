@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import os
 import math
+import re
 from datetime import datetime
 import googlemaps
 from dotenv import load_dotenv
@@ -12,6 +13,19 @@ API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 gmaps = googlemaps.Client(key=API_KEY) if API_KEY else None
 
 
+def clean_venue_name(name: str) -> str:
+    """Removes parenthetical notes like '(Inside VivoCity Mall)' for cleaner API searches."""
+    return re.sub(r"\s*\([^)]*\)", "", name).strip()
+
+
+def extract_parent_complex(name: str) -> str | None:
+    """Extracts parent venue names from patterns like '(Inside VivoCity Mall)' or '(at RWS)'."""
+    match = re.search(r"\((?:inside|at)\s+(.*?)\)", name, re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
 def haversine_distance_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Calculates straight-line distance in meters between two lat/lng points."""
     R = 6371000  # Earth radius in meters
@@ -20,8 +34,8 @@ def haversine_distance_meters(lat1: float, lng1: float, lat2: float, lng2: float
     delta_lambda = math.radians(lng2 - lng1)
 
     a = (
-        math.sin(delta_phi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+            math.sin(delta_phi / 2) ** 2
+            + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
     )
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
@@ -30,14 +44,16 @@ def haversine_distance_meters(lat1: float, lng1: float, lat2: float, lng2: float
 def resolve_venue_location(venue_name: str) -> dict | None:
     """
     Geocodes a venue name using Google Places API to retrieve exact lat, lng, and place_id.
-    Prevents ambiguous string matching in directions routing.
+    Strips parenthetical context to get precise shop/attraction coordinates.
     """
     if not gmaps or not venue_name:
         return None
 
     try:
-        # Search specifically within Singapore
-        query = f"{venue_name}, Singapore"
+        # Strip parenthetical annotations before searching Google Places
+        search_name = clean_venue_name(venue_name)
+        query = f"{search_name}, Singapore"
+
         place_result = gmaps.find_place(
             input=query,
             input_type="textquery",
@@ -49,7 +65,7 @@ def resolve_venue_location(venue_name: str) -> dict | None:
             best = candidates[0]
             loc = best["geometry"]["location"]
             return {
-                "name": best.get("name", venue_name),
+                "name": best.get("name", search_name),
                 "lat": loc["lat"],
                 "lng": loc["lng"],
                 "place_id": best.get("place_id"),
@@ -62,9 +78,9 @@ def resolve_venue_location(venue_name: str) -> dict | None:
 
 
 def calculate_sg_taxi_fare(
-    distance_meters: int,
-    duration_seconds: int,
-    departure_datetime: datetime | None = None
+        distance_meters: int,
+        duration_seconds: int,
+        departure_datetime: datetime | None = None
 ) -> dict:
     """
     Calculates estimated Singapore Taxi / Ride-Hailing (Grab/Gojek) fare range
@@ -114,9 +130,9 @@ def calculate_sg_taxi_fare(
 
 
 def get_driving_fallback(
-    origin_target: str | dict,
-    destination_target: str | dict,
-    departure_datetime: datetime
+        origin_target: str | dict,
+        destination_target: str | dict,
+        departure_datetime: datetime
 ) -> dict | None:
     """
     Queries Google Maps Directions API in DRIVING mode to calculate
@@ -159,13 +175,13 @@ def get_driving_fallback(
 
 
 def get_transit_route_by_name(
-    start_venue: str,
-    end_venue: str,
-    departure_datetime: datetime
+        start_venue: str,
+        end_venue: str,
+        departure_datetime: datetime
 ) -> dict:
     """
     Queries Google Directions API using exact Place IDs / Lat-Lng coordinates.
-    Detects same-building/nearby stops (<100m) and prevents false route loops.
+    Detects same-building/nearby stops (<300m) and calculates realistic indoor transition times.
     """
     if not gmaps:
         raise ValueError("GOOGLE_MAPS_API_KEY is missing from .env")
@@ -178,39 +194,73 @@ def get_transit_route_by_name(
         start_coords = {"lat": start_loc["lat"], "lng": start_loc["lng"]} if start_loc else None
         end_coords = {"lat": end_loc["lat"], "lng": end_loc["lng"]} if end_loc else None
 
-        start_lower = start_venue.lower()
-        end_lower = end_venue.lower()
+        clean_start = clean_venue_name(start_venue).lower()
+        clean_end = clean_venue_name(end_venue).lower()
 
-        # Step 2: SAME VENUE / SAME BUILDING CHECK
-        # A) Explicit string overlap (e.g., both contain "national gallery")
-        # B) Place IDs match
-        # C) Distance between coordinates is less than 100 meters
-        is_same_place = False
+        start_parent = extract_parent_complex(start_venue)
+        end_parent = extract_parent_complex(end_venue)
 
-        if start_loc and end_loc:
-            if start_loc["place_id"] == end_loc["place_id"]:
-                is_same_place = True
+        # Calculate straight-line distance in meters
+        dist_meters = (
+            haversine_distance_meters(
+                start_loc["lat"], start_loc["lng"], end_loc["lat"], end_loc["lng"]
+            )
+            if (start_loc and end_loc)
+            else 0
+        )
+
+        # Step 2: INTRA-COMPLEX / SAME VENUE DETECTION
+        is_same_place_id = bool(start_loc and end_loc and start_loc["place_id"] == end_loc["place_id"])
+
+        shared_parent = bool(
+            (start_parent and end_parent and start_parent.lower() == end_parent.lower())
+            or (start_parent and start_parent.lower() in clean_end)
+            or (end_parent and end_parent.lower() in clean_start)
+        )
+
+        is_intra_venue = is_same_place_id or shared_parent or dist_meters < 300
+
+        if is_intra_venue:
+            # Case A: Literally the exact same venue/shop
+            if clean_start == clean_end:
+                walk_mins = 1
+                est_dist = round(dist_meters)
+                walk_desc = "🚶 Located at the exact same spot (<1 min walk)"
+            # Case B: Distinct sub-locations inside the same complex or nearby (<300m)
             else:
-                dist = haversine_distance_meters(start_loc["lat"], start_loc["lng"], end_loc["lat"], end_loc["lng"])
-                if dist < 100:  # Within 100 meters = same building / complex
-                    is_same_place = True
+                # If geocoding collapsed both venues to the exact same point (< 30m gap),
+                # allocate a realistic indoor mall/complex walking buffer (~200m / 4 mins)
+                if dist_meters < 30:
+                    est_dist = 200  # Default ~200m indoor walking distance
+                    walk_mins = 4  # ~4 mins to walk between floors/halls
+                else:
+                    est_dist = round(dist_meters)
+                    # ~70m per minute indoor walking speed, floor minimum of 3 mins
+                    walk_mins = max(3, round(est_dist / 70))
 
-        if start_lower in end_lower or end_lower in start_lower or "inside" in end_lower:
-            is_same_place = True
+                complex_name = end_parent or start_parent or "the same venue/complex"
+                walk_desc = f"🚶 Walk inside {complex_name} (~{est_dist}m, {walk_mins} mins)"
 
-        if is_same_place:
             return {
                 "drive_mins": 0,
-                "real_commute_mins": 0,
-                "walk_distance_m": 0,
-                "step_by_step": "🚶 Located inside or at the same venue (<1 min walk)",
+                "real_commute_mins": walk_mins,
+                "walk_distance_m": est_dist,
+                "step_by_step": walk_desc,
                 "start_coords": start_coords,
-                "end_coords": start_coords,  # Keep coordinates identical on map!
+                "end_coords": end_coords,
             }
 
-        # Step 3: Construct precise targets for Directions API (Use place_id or lat,lng)
-        origin_target = f"place_id:{start_loc['place_id']}" if (start_loc and start_loc.get("place_id")) else f"{start_venue}, Singapore"
-        destination_target = f"place_id:{end_loc['place_id']}" if (end_loc and end_loc.get("place_id")) else f"{end_venue}, Singapore"
+        # Step 3: Construct precise targets for Directions API
+        origin_target = (
+            f"place_id:{start_loc['place_id']}"
+            if (start_loc and start_loc.get("place_id"))
+            else f"{clean_venue_name(start_venue)}, Singapore"
+        )
+        destination_target = (
+            f"place_id:{end_loc['place_id']}"
+            if (end_loc and end_loc.get("place_id"))
+            else f"{clean_venue_name(end_venue)}, Singapore"
+        )
 
         directions = gmaps.directions(
             origin=origin_target,
@@ -244,7 +294,6 @@ def get_transit_route_by_name(
         # --- CASE 2: Transit Route Found ---
         leg = directions[0]["legs"][0]
 
-        # Use Google's verified start/end coords if geocoding failed earlier
         if not start_coords:
             start_coords = {"lat": leg["start_location"]["lat"], "lng": leg["start_location"]["lng"]}
         if not end_coords:
@@ -265,7 +314,7 @@ def get_transit_route_by_name(
             if travel_mode == "TRANSIT":
                 transit = step["transit_details"]
                 line_info = transit["line"]
-                vehicle_type = line_info["vehicle"]["type"]  # BUS, SUBWAY, FERRY
+                vehicle_type = line_info["vehicle"]["type"]
                 line_name = line_info.get("short_name") or line_info.get("name", "")
                 dep_stop = transit["departure_stop"]["name"]
                 arr_stop = transit["arrival_stop"]["name"]
@@ -296,7 +345,7 @@ def get_transit_route_by_name(
 
         transit_summary_str = " ➔ ".join(legs_summary)
 
-        # Check for driving fallback if walking distance is excessive (>800m)
+        # Fallback to driving if walking distance is excessive (>800m)
         driving_info = None
         if has_excessive_walk or (is_pure_walk and total_distance_m > 800):
             driving_info = get_driving_fallback(origin_target, destination_target, departure_datetime)
