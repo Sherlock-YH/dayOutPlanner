@@ -1,7 +1,6 @@
 fastapi
 uvicorn
-requests
-pydantic
+pydantic[email]
 sqlalchemy
 psycopg2-binary
 python-dotenv
@@ -9,11 +8,6 @@ openai
 googlemaps
 python-jose[cryptography]
 python-multipart
-email-validator
-passlib[bcrypt]==1.7.4
 bcrypt>=4.0.0
 resend
-email-validator
-resend
-python-multipart
-pydantic[email]
+requests
