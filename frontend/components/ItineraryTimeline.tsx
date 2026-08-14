@@ -1,7 +1,34 @@
 "use client";
 
+import { useState } from "react";
+
+export interface TransitInfo {
+  commute_mins: number;
+  step_by_step: string;
+}
+
+export interface ItineraryStop {
+  stop_number?: number;
+  start_time: string;
+  end_time: string;
+  duration_mins?: number;
+  stay_duration_mins?: number;
+  venue_name: string;
+  why_go: string;
+  transit_to_next?: TransitInfo;
+}
+
+export interface ItineraryData {
+  title?: string;
+  summary: string;
+  start_location: string;
+  start_time: string;
+  initial_transit?: TransitInfo;
+  stops: ItineraryStop[];
+}
+
 interface ItineraryTimelineProps {
-  itinerary: any;
+  itinerary: ItineraryData;
   activeStopNumber: number | null;
   onSelectStop: (stopNumber: number) => void;
 }
@@ -11,15 +38,42 @@ export default function ItineraryTimeline({
   activeStopNumber,
   onSelectStop,
 }: ItineraryTimelineProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopySummary = () => {
+    let text = `📍 ${itinerary.title || "Day Out Itinerary"}\n`;
+    text += `Start: ${itinerary.start_location} @ ${itinerary.start_time}\n\n`;
+
+    itinerary.stops?.forEach((stop, i) => {
+      const num = stop.stop_number ?? i + 1;
+      text += `Stop #${num}: ${stop.venue_name} (${stop.start_time} - ${stop.end_time})\n`;
+    });
+
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-2">
-        <h2 className="text-2xl font-bold text-white">
-          {itinerary.title || "Your Itinerary Plan"}
-        </h2>
+      {/* Title & Summary */}
+      <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-6 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-2xl font-bold text-white">
+            {itinerary.title || "Your Itinerary Plan"}
+          </h2>
+          <button
+            type="button"
+            onClick={handleCopySummary}
+            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs rounded-lg transition-colors font-medium shrink-0 print:hidden"
+          >
+            {copied ? "✓ Copied!" : "📋 Copy Summary"}
+          </button>
+        </div>
         <p className="text-slate-300 text-sm leading-relaxed">{itinerary.summary}</p>
       </div>
 
+      {/* Timeline */}
       <div className="relative pl-6 border-l-2 border-emerald-500/30 space-y-8">
         {/* START LOCATION */}
         <div className="relative space-y-4">
@@ -47,7 +101,7 @@ export default function ItineraryTimeline({
         </div>
 
         {/* ITINERARY STOPS */}
-        {(itinerary.stops || []).map((stop: any, index: number) => {
+        {(itinerary.stops || []).map((stop, index) => {
           const stopNum = stop.stop_number ?? index + 1;
           const isSelected = activeStopNumber === stopNum;
 
