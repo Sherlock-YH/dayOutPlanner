@@ -71,7 +71,7 @@ export function buildDirectionsUrl(
  */
 export function buildPlaceUrl(
   name: string | null | undefined,
-  coords?: { lat: number | null; lng: number | null },
+  coords?: { lat?: number | null; lng?: number | null },
   placeId?: string
 ): string {
   const cleanName = (name || "").replace(/^(undefined|null)[,\s]*/i, "").trim();
