@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="38107803-19b5-4aa9-91eb-727cdc0d235b" name="Changes" comment="">
+    <list default="true" id="38107803-19b5-4aa9-91eb-727cdc0d235b" name="Changes" comment="Fix bugs for updated ItineraryTimeline.tsx">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.venv/bin/pip-3.12" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.venv/lib/python3.12/site-packages/pip-23.2.1.dist-info/AUTHORS.txt" beforeDir="false" />
@@ -461,7 +461,7 @@
       <change beforePath="$PROJECT_DIR$/.venv/lib/python3.12/site-packages/pip/_vendor/webencodings/mklabels.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.venv/lib/python3.12/site-packages/pip/_vendor/webencodings/tests.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.venv/lib/python3.12/site-packages/pip/_vendor/webencodings/x_user_defined.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/helperFunction.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/helperFunction.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -635,102 +635,6 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1785426225109</updated>
-    </task>
-    <task id="LOCAL-00001" summary="start of the project">
-      <option name="closed" value="true" />
-      <created>1785426484290</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
-      <option name="project" value="LOCAL" />
-      <updated>1785426484290</updated>
-    </task>
-    <task id="LOCAL-00002" summary="created poc.py">
-      <option name="closed" value="true" />
-      <created>1785430528555</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1785430528555</updated>
-    </task>
-    <task id="LOCAL-00003" summary="test .env">
-      <option name="closed" value="true" />
-      <created>1785430943175</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1785430943175</updated>
-    </task>
-    <task id="LOCAL-00004" summary="working poc.py with .env">
-      <option name="closed" value="true" />
-      <created>1785431545409</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1785431545409</updated>
-    </task>
-    <task id="LOCAL-00005" summary="working poc.py and onemap api">
-      <option name="closed" value="true" />
-      <created>1785433039778</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1785433039778</updated>
-    </task>
-    <task id="LOCAL-00006" summary="working openai and onemap api with minor adjustments and Fact-Checking Pipeline backed by official onemap API">
-      <option name="closed" value="true" />
-      <created>1785434924788</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1785434924788</updated>
-    </task>
-    <task id="LOCAL-00007" summary="Update catch of offshore destinations&#10;Increased to allow bus access/egress walks minor adjustments and Fact-Checking Pipeline backed by official onemap API">
-      <option name="closed" value="true" />
-      <created>1785436026425</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1785436026425</updated>
-    </task>
-    <task id="LOCAL-00008" summary="update offshore error&#10;modify the prompt">
-      <option name="closed" value="true" />
-      <created>1785436895538</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
-      <option name="project" value="LOCAL" />
-      <updated>1785436895538</updated>
-    </task>
-    <task id="LOCAL-00009" summary="Add gmap API to replace oneMap for better accuracy">
-      <option name="closed" value="true" />
-      <created>1785517934594</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
-      <option name="project" value="LOCAL" />
-      <updated>1785517934594</updated>
-    </task>
-    <task id="LOCAL-00010" summary="Add helper function and test for it">
-      <option name="closed" value="true" />
-      <created>1785519666443</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
-      <option name="project" value="LOCAL" />
-      <updated>1785519666443</updated>
-    </task>
-    <task id="LOCAL-00011" summary="Refine the main.py to work with gmap API&#10;Add excess walk checker in gmaps_service.py&#10;Add functions to suggest ride hailing for long walking distance">
-      <option name="closed" value="true" />
-      <created>1785520613183</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
-      <option name="project" value="LOCAL" />
-      <updated>1785520613183</updated>
-    </task>
-    <task id="LOCAL-00012" summary="add CORSMiddleware to backend entrypoint">
-      <option name="closed" value="true" />
-      <created>1785555386869</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1785555386869</updated>
     </task>
     <task id="LOCAL-00013" summary="Zero API Cost: @patch(&quot;gmaps_service.gmaps&quot;) prevents calls to the live Google Maps API during tests.&#10;&#10;Deterministic Edge Case Testing: Google Maps ZERO_RESULTS API payloads can be hard to reproduce on demand with live queries. Mocking lets you force that exact edge case instantly in 0.002s.">
       <option name="closed" value="true" />
@@ -1012,7 +916,119 @@
       <option name="project" value="LOCAL" />
       <updated>1786439798782</updated>
     </task>
-    <option name="localTasksCounter" value="48" />
+    <task id="LOCAL-00048" summary="Fix resend email error">
+      <option name="closed" value="true" />
+      <created>1786440464167</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1786440464167</updated>
+    </task>
+    <task id="LOCAL-00049" summary="update sender domain">
+      <option name="closed" value="true" />
+      <created>1786447327497</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1786447327497</updated>
+    </task>
+    <task id="LOCAL-00050" summary="Add safety measures for backend">
+      <option name="closed" value="true" />
+      <created>1786713812282</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1786713812282</updated>
+    </task>
+    <task id="LOCAL-00051" summary="update requirements.txt">
+      <option name="closed" value="true" />
+      <created>1786714073027</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1786714073027</updated>
+    </task>
+    <task id="LOCAL-00052" summary="update excessive walking limits">
+      <option name="closed" value="true" />
+      <created>1786715211253</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1786715211253</updated>
+    </task>
+    <task id="LOCAL-00053" summary="Update components for smooth scrolling of map">
+      <option name="closed" value="true" />
+      <created>1786715350199</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1786715350199</updated>
+    </task>
+    <task id="LOCAL-00054" summary="Update components for users to access google map">
+      <option name="closed" value="true" />
+      <created>1786716168952</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1786716168953</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Add idle log out feature">
+      <option name="closed" value="true" />
+      <created>1786716376241</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1786716376241</updated>
+    </task>
+    <task id="LOCAL-00056" summary="Fix bugs for updated ItineraryTimeline.tsx">
+      <option name="closed" value="true" />
+      <created>1786716724026</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1786716724026</updated>
+    </task>
+    <task id="LOCAL-00057" summary="Add hooks/useAutoLogout.ts">
+      <option name="closed" value="true" />
+      <created>1786716933312</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1786716933312</updated>
+    </task>
+    <task id="LOCAL-00058" summary="Update buildPlaceUrl in ItineraryTimeline.tsx">
+      <option name="closed" value="true" />
+      <created>1786717061674</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1786717061674</updated>
+    </task>
+    <task id="LOCAL-00059" summary="Update the coords parameter in buildPlaceUrl so lat and lng accept undefined as well as null">
+      <option name="closed" value="true" />
+      <created>1786717180203</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1786717180203</updated>
+    </task>
+    <task id="LOCAL-00060" summary="Add gmap calling for double checking the places">
+      <option name="closed" value="true" />
+      <created>1786718135592</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1786718135592</updated>
+    </task>
+    <task id="LOCAL-00061" summary="Update the logic for calculating travelling dist and time for same venue">
+      <option name="closed" value="true" />
+      <created>1786718682380</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1786718682381</updated>
+    </task>
+    <option name="localTasksCounter" value="62" />
     <servers />
   </component>
   <component name="UnknownFeatures">
@@ -1030,20 +1046,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Rearranging files prepared for deployment" />
-    <MESSAGE value="add itinerary.ts" />
-    <MESSAGE value="add gitignore" />
-    <MESSAGE value="change config for development" />
-    <MESSAGE value="update map.tsx referrence" />
-    <MESSAGE value="update FastAPI application instance and CORS middleware config" />
-    <MESSAGE value="Fix files for backend deployment" />
-    <MESSAGE value="Add requirement" />
-    <MESSAGE value="update for railway" />
-    <MESSAGE value="update main.py for railway" />
-    <MESSAGE value="update frontend point to railway" />
-    <MESSAGE value="update backend for frontend and backend connectivity" />
-    <MESSAGE value="update the encoding" />
-    <MESSAGE value="update frontend icons and wordings" />
     <MESSAGE value="fix bug and improve wording" />
     <MESSAGE value="add admin access and fix requirement" />
     <MESSAGE value="update auth.py for DB connection" />
@@ -1055,6 +1057,20 @@
     <MESSAGE value="Add checker for password when signing up" />
     <MESSAGE value="Add OTP Verification Features" />
     <MESSAGE value="Fix helperFunction error" />
-    <option name="LAST_COMMIT_MESSAGE" value="Fix helperFunction error" />
+    <MESSAGE value="Fix resend email error" />
+    <MESSAGE value="update sender domain" />
+    <MESSAGE value="Add safety measures for backend" />
+    <MESSAGE value="update requirements.txt" />
+    <MESSAGE value="update excessive walking limits" />
+    <MESSAGE value="Update components for smooth scrolling of map" />
+    <MESSAGE value="Update components for users to access google map" />
+    <MESSAGE value="Add idle log out feature" />
+    <MESSAGE value="Add hooks/useAutoLogout.ts" />
+    <MESSAGE value="Update buildPlaceUrl in ItineraryTimeline.tsx" />
+    <MESSAGE value="Update the coords parameter in buildPlaceUrl so lat and lng accept undefined as well as null" />
+    <MESSAGE value="Add gmap calling for double checking the places" />
+    <MESSAGE value="Fix bugs for updated ItineraryTimeline.tsx" />
+    <MESSAGE value="Update the logic for calculating travelling dist and time for same venue" />
+    <option name="LAST_COMMIT_MESSAGE" value="Update the logic for calculating travelling dist and time for same venue" />
   </component>
 </project>
