@@ -112,7 +112,7 @@ class PlanRequest(BaseModel):
         description="User prompt for itinerary creation",
     )
     start_location: str = Field(
-        "Marina Bay Sands, Singapore",
+        "Singapore Raffles Place",
         max_length=150,
     )
     start_time: str = Field(
@@ -184,8 +184,8 @@ def health_check():
 # ==========================================
 def generate_itinerary_plan(
     prompt: str,
-    start_location: str = "Marina Bay Sands, Singapore",
-    start_time_str: str = "09:00 AM",
+    start_location: str = "Singapore Raffles Place",
+    start_time_str: str = "10:00 AM",
 ):
     prompt = prompt.replace("\u2028", "\n").replace("\u2029", "\n").strip()
     start_location = start_location.replace("\u2028", " ").replace("\u2029", " ").strip()
