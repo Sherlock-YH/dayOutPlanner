@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Header from "@/components/Header";
 import AuthCard from "@/components/AuthCard";
 import PlannerForm from "@/components/PlannerForm";
 import ItineraryTimeline from "@/components/ItineraryTimeline";
 import ItineraryMap from "@/components/ItineraryMap";
+import { useAutoLogout } from "@/hooks/useAutoLogout";
 
 // Fallback to production API and sanitize trailing slashes
 const RAW_API_BASE =
@@ -16,6 +17,7 @@ export default function Home() {
   // Auth State
   const [token, setToken] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [logoutMessage, setLogoutMessage] = useState<string | null>(null);
 
   // App Input States
   const [prompt, setPrompt] = useState("");
@@ -38,13 +40,25 @@ export default function Home() {
     setIsInitializing(false);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     localStorage.removeItem("token");
     setToken(null);
     setItinerary(null);
     setError(null);
     setActiveStopNumber(null);
-  };
+  }, []);
+
+  // AUTO-LOGOUT INACTIVITY TIMER (15 minutes)
+  useAutoLogout({
+    timeoutInMinutes: 15,
+    isEnabled: !!token,
+    onLogout: () => {
+      handleLogout();
+      setLogoutMessage(
+        "You have been automatically logged out due to inactivity for security."
+      );
+    },
+  });
 
   const handleSelectStop = (stopNumber: number) => {
     setActiveStopNumber(stopNumber);
@@ -121,10 +135,26 @@ export default function Home() {
   // VIEW 1: AUTHENTICATION SCREEN
   if (!token) {
     return (
-      <AuthCard
-        apiBase={API_BASE}
-        onAuthSuccess={(newToken) => setToken(newToken)}
-      />
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 space-y-4">
+        {logoutMessage && (
+          <div className="w-full max-w-md p-4 bg-amber-900/40 border border-amber-600 rounded-xl text-amber-200 text-xs text-center flex items-center justify-between shadow-lg">
+            <span>⚠️ {logoutMessage}</span>
+            <button
+              onClick={() => setLogoutMessage(null)}
+              className="ml-2 text-slate-400 hover:text-white font-bold"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        <AuthCard
+          apiBase={API_BASE}
+          onAuthSuccess={(newToken) => {
+            setLogoutMessage(null);
+            setToken(newToken);
+          }}
+        />
+      </div>
     );
   }
 
