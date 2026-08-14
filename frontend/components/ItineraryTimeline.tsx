@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ItineraryData } from "./ItineraryTimeline"; // Import your types
+import { ItineraryData } from "@/types/itinerary";
 
 export interface LocationTarget {
   name?: string;
