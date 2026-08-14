@@ -70,7 +70,7 @@ export function buildDirectionsUrl(
  * Generates a Google Maps Place URL using the venue name or Place ID.
  */
 export function buildPlaceUrl(
-  name: string,
+  name: string | null | undefined,
   coords?: { lat: number | null; lng: number | null },
   placeId?: string
 ): string {
@@ -85,7 +85,7 @@ export function buildPlaceUrl(
     return `https://www.google.com/maps/search/?api=1&query=${encodedName}`;
   }
 
-  if (coords?.lat && coords?.lng) {
+  if (coords?.lat != null && coords?.lng != null) {
     return `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`;
   }
 
