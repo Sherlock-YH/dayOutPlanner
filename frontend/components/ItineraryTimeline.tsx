@@ -1,30 +1,95 @@
 "use client";
 
 import { useState } from "react";
+import { ItineraryData } from "./ItineraryTimeline"; // Import your types
 
-export interface TransitInfo {
-  commute_mins: number;
-  step_by_step: string;
+export interface LocationTarget {
+  name?: string;
+  placeId?: string;
+  lat?: number | null;
+  lng?: number | null;
 }
 
-export interface ItineraryStop {
-  stop_number?: number;
-  start_time: string;
-  end_time: string;
-  duration_mins?: number;
-  stay_duration_mins?: number;
-  venue_name: string;
-  why_go: string;
-  transit_to_next?: TransitInfo;
+/**
+ * Sanitizes location input and generates a clean Google Maps Directions URL.
+ * Prefers venue names & placeIds over raw coordinates to avoid dropped pins.
+ */
+export function buildDirectionsUrl(
+  origin: string | LocationTarget | null | undefined,
+  destination: string | LocationTarget | null | undefined
+): string {
+  const parseLocation = (
+    loc: string | LocationTarget | null | undefined
+  ): { val: string; placeId?: string } => {
+    if (!loc) return { val: "" };
+
+    if (typeof loc === "string") {
+      const clean = loc.replace(/^(undefined|null)[,\s]*/i, "").trim();
+      return { val: clean };
+    }
+
+    const cleanName = (loc.name || "").replace(/^(undefined|null)[,\s]*/i, "").trim();
+
+    // Prefer venue name
+    if (cleanName) {
+      return { val: cleanName, placeId: loc.placeId };
+    }
+
+    // Fallback to coordinates
+    if (loc.lat != null && loc.lng != null) {
+      return { val: `${loc.lat},${loc.lng}`, placeId: loc.placeId };
+    }
+
+    return { val: "", placeId: loc.placeId };
+  };
+
+  const orig = parseLocation(origin);
+  const dest = parseLocation(destination);
+
+  // Fallback: If either location is missing OR origin equals destination,
+  // open search view instead of attempting impossible transit directions
+  if (!orig.val || !dest.val || orig.val.toLowerCase() === dest.val.toLowerCase()) {
+    const fallbackTarget = dest.val || orig.val || "";
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackTarget)}`;
+  }
+
+  const params = new URLSearchParams({
+    api: "1",
+    travelmode: "transit",
+    origin: orig.val,
+    destination: dest.val,
+  });
+
+  if (orig.placeId) params.append("origin_place_id", orig.placeId);
+  if (dest.placeId) params.append("destination_place_id", dest.placeId);
+
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
 }
 
-export interface ItineraryData {
-  title?: string;
-  summary: string;
-  start_location: string;
-  start_time: string;
-  initial_transit?: TransitInfo;
-  stops: ItineraryStop[];
+/**
+ * Generates a Google Maps Place URL using the venue name or Place ID.
+ */
+export function buildPlaceUrl(
+  name: string,
+  coords?: { lat: number | null; lng: number | null },
+  placeId?: string
+): string {
+  const cleanName = (name || "").replace(/^(undefined|null)[,\s]*/i, "").trim();
+  const encodedName = encodeURIComponent(cleanName);
+
+  if (placeId) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodedName}&query_place_id=${placeId}`;
+  }
+
+  if (cleanName) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodedName}`;
+  }
+
+  if (coords?.lat && coords?.lng) {
+    return `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`;
+  }
+
+  return "https://www.google.com/maps";
 }
 
 interface ItineraryTimelineProps {
@@ -53,6 +118,8 @@ export default function ItineraryTimeline({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const firstStop = itinerary.stops?.[0];
 
   return (
     <div className="space-y-6">
@@ -87,11 +154,31 @@ export default function ItineraryTimeline({
             <h3 className="text-base font-bold text-white">{itinerary.start_location}</h3>
           </div>
 
-          {itinerary.initial_transit && (
-            <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-4 ml-2 text-xs space-y-2 text-slate-300">
-              <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-                <span>🚍 COMMUTE TO STOP #1</span>
-                <span>({itinerary.initial_transit.commute_mins} mins)</span>
+          {/* INITIAL COMMUTE + DIRECTIONS BUTTON */}
+          {itinerary.initial_transit && firstStop && (
+            <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-4 ml-2 text-xs space-y-3 text-slate-300">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                  <span>🚍 COMMUTE TO STOP #1</span>
+                  <span>({itinerary.initial_transit.commute_mins} mins)</span>
+                </div>
+
+                <a
+                  href={buildDirectionsUrl(
+                    itinerary.start_location,
+                    {
+                      name: firstStop.venue_name,
+                      placeId: firstStop.place_id,
+                      lat: firstStop.lat,
+                      lng: firstStop.lng,
+                    }
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md font-medium transition-colors print:hidden"
+                >
+                  🗺️ Get Directions ↗
+                </a>
               </div>
               <p className="font-mono whitespace-pre-line text-slate-300 leading-relaxed">
                 {itinerary.initial_transit.step_by_step}
@@ -104,6 +191,7 @@ export default function ItineraryTimeline({
         {(itinerary.stops || []).map((stop, index) => {
           const stopNum = stop.stop_number ?? index + 1;
           const isSelected = activeStopNumber === stopNum;
+          const nextStop = itinerary.stops[index + 1];
 
           return (
             <div key={`stop-${stopNum}-${index}`} className="relative space-y-4">
@@ -140,16 +228,60 @@ export default function ItineraryTimeline({
                   </span>
                 </div>
 
-                <h3 className="text-lg font-bold text-white">{stop.venue_name}</h3>
+                <div className="flex items-start justify-between gap-4">
+                  <h3 className="text-lg font-bold text-white">{stop.venue_name}</h3>
+
+                  {/* OPEN RICH PLACE CARD IN GOOGLE MAPS */}
+                  <a
+                    href={buildPlaceUrl(
+                      stop.venue_name,
+                      { lat: stop.lat, lng: stop.lng },
+                      stop.place_id
+                    )}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()} // Prevents toggling card selection
+                    className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline flex items-center gap-1 shrink-0 print:hidden"
+                  >
+                    📍 View Place ↗
+                  </a>
+                </div>
+
                 <p className="text-slate-300 text-sm leading-relaxed">{stop.why_go}</p>
               </div>
 
-              {stop.transit_to_next && (
-                <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-4 ml-2 text-xs space-y-2 text-slate-300">
-                  <div className="flex items-center gap-2 text-emerald-400 font-semibold">
-                    <span>🚍 COMMUTE</span>
-                    <span>({stop.transit_to_next.commute_mins} mins)</span>
+              {/* COMMUTE TO NEXT STOP + DIRECTIONS BUTTON */}
+              {stop.transit_to_next && nextStop && (
+                <div className="bg-slate-800/40 border border-slate-700/60 rounded-lg p-4 ml-2 text-xs space-y-3 text-slate-300">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                      <span>🚍 COMMUTE TO STOP #{stopNum + 1}</span>
+                      <span>({stop.transit_to_next.commute_mins} mins)</span>
+                    </div>
+
+                    <a
+                      href={buildDirectionsUrl(
+                        {
+                          name: stop.venue_name,
+                          placeId: stop.place_id,
+                          lat: stop.lat,
+                          lng: stop.lng,
+                        },
+                        {
+                          name: nextStop.venue_name,
+                          placeId: nextStop.place_id,
+                          lat: nextStop.lat,
+                          lng: nextStop.lng,
+                        }
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-md font-medium transition-colors print:hidden"
+                    >
+                      🗺️ Get Directions ↗
+                    </a>
                   </div>
+
                   <p className="font-mono whitespace-pre-line text-slate-300 leading-relaxed">
                     {stop.transit_to_next.step_by_step}
                   </p>
