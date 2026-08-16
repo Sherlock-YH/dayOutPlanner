@@ -191,7 +191,7 @@ def verify_request_quota(
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail={
-                "error": "Daily request limit reached.",
+                "error": f"Daily request limit of {current_user.daily_request_limit} reached. Resets at midnight UTC.",
                 "requests_used": current_user.requests_used_today,
                 "daily_limit": current_user.daily_request_limit,
                 "resets_at": "Midnight UTC",

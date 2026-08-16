@@ -110,7 +110,24 @@ export default function Home() {
       }
 
       if (!response.ok) {
-        throw new Error(data?.detail || `Error ${response.status}`);
+        // Safely extract string message whether detail is a string, object, or array
+        let errorMessage = `Error ${response.status}`;
+        if (typeof data?.detail === "string") {
+          errorMessage = data.detail;
+        } else if (Array.isArray(data?.detail)) {
+          errorMessage = data.detail
+            .map((err: any) => err.msg || JSON.stringify(err))
+            .join(", ");
+        } else if (typeof data?.detail === "object" && data?.detail !== null) {
+          errorMessage =
+            data.detail.error ||
+            data.detail.message ||
+            JSON.stringify(data.detail);
+        } else if (typeof data?.message === "string") {
+          errorMessage = data.message;
+        }
+
+        throw new Error(errorMessage);
       }
 
       setItinerary(data);
