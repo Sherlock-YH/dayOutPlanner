@@ -21,6 +21,7 @@ from auth import (
     get_db,
     init_db,
     router as auth_router,
+    verify_request_quota,  # <--- Added dependency
 )
 from gmaps_service import get_transit_route_by_name
 
@@ -141,18 +142,23 @@ class ItineraryPlan(BaseModel):
 @app.post("/api/plan/")
 def create_itinerary(
     req: PlanRequest,
-    current_user: UserDB = Depends(get_current_user),
+    current_user: UserDB = Depends(verify_request_quota),
 ):
     clean_prompt = req.prompt.strip().replace("\u2028", " ")
     if not clean_prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
 
     try:
-        return generate_itinerary_plan(
+        plan_result = generate_itinerary_plan(
             prompt=clean_prompt,
             start_location=req.start_location.replace("\u2028", " "),
             start_time_str=req.start_time.replace("\u2028", " "),
         )
+        # Include remaining requests count in response metadata
+        plan_result["requests_remaining"] = max(
+            0, current_user.daily_request_limit - current_user.requests_used_today
+        )
+        return plan_result
     except Exception as e:
         # Log complete stack trace internally
         logger.error(f"Error generating plan for user {current_user.email}: {str(e)}")

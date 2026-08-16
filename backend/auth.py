@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import Boolean, Column, DateTime, Integer, String, create_engine
+from sqlalchemy import Boolean, Column, Date, DateTime, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -69,6 +69,11 @@ class UserDB(Base):
     code_expires_at = Column(DateTime, nullable=True)
     failed_otp_attempts = Column(Integer, default=0)  # Counter to block brute-force attacks
 
+    # Daily Request Limit Fields
+    daily_request_limit = Column(Integer, default=50, nullable=False)  # Max requests per day
+    requests_used_today = Column(Integer, default=0, nullable=False)
+    last_request_reset_date = Column(Date, default=datetime.now(timezone.utc).date, nullable=False)
+
 
 def init_db():
     Base.metadata.create_all(bind=engine)
@@ -105,6 +110,13 @@ class VerifyOTPRequest(BaseModel):
 
 class ResendOTPRequest(BaseModel):
     email: EmailStr
+
+
+class RequestUsageResponse(BaseModel):
+    email: str
+    requests_used_today: int
+    daily_request_limit: int
+    requests_remaining: int
 
 
 # --- SECURITY HELPERS ---
@@ -155,6 +167,41 @@ def get_current_admin_user(current_user: UserDB = Depends(get_current_user)):
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin privileges required for this action.",
         )
+    return current_user
+
+
+def verify_request_quota(
+    current_user: UserDB = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> UserDB:
+    """
+    Dependency that resets daily counters when a new day starts, checks request limits,
+    and increments usage for protected routes.
+    """
+    today = datetime.now(timezone.utc).date()
+
+    # 1. Automatic Midnight UTC Reset
+    if current_user.last_request_reset_date is None or current_user.last_request_reset_date < today:
+        current_user.requests_used_today = 0
+        current_user.last_request_reset_date = today
+        db.commit()
+
+    # 2. Reject request if limit met
+    if current_user.requests_used_today >= current_user.daily_request_limit:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "Daily request limit reached.",
+                "requests_used": current_user.requests_used_today,
+                "daily_limit": current_user.daily_request_limit,
+                "resets_at": "Midnight UTC",
+            },
+        )
+
+    # 3. Increment request count
+    current_user.requests_used_today += 1
+    db.commit()
+
     return current_user
 
 
@@ -283,3 +330,21 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     access_token = create_access_token(data={"sub": user.email})
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/usage", response_model=RequestUsageResponse)
+def get_usage_status(current_user: UserDB = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Read-only check for user's remaining daily requests without consuming a quota count."""
+    today = datetime.now(timezone.utc).date()
+    if current_user.last_request_reset_date is None or current_user.last_request_reset_date < today:
+        current_user.requests_used_today = 0
+        current_user.last_request_reset_date = today
+        db.commit()
+
+    remaining = max(0, current_user.daily_request_limit - current_user.requests_used_today)
+    return {
+        "email": current_user.email,
+        "requests_used_today": current_user.requests_used_today,
+        "daily_request_limit": current_user.daily_request_limit,
+        "requests_remaining": remaining,
+    }
