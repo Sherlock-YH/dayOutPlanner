@@ -154,17 +154,14 @@ def create_itinerary(
             start_location=req.start_location.replace("\u2028", " "),
             start_time_str=req.start_time.replace("\u2028", " "),
         )
-        # Include remaining requests count in response metadata
         plan_result["requests_remaining"] = max(
             0, current_user.daily_request_limit - current_user.requests_used_today
         )
         return plan_result
     except Exception as e:
-        # Log complete stack trace internally
         logger.error(f"Error generating plan for user {current_user.email}: {str(e)}")
         traceback.print_exc()
 
-        # Safe error message returned to client
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred while generating your itinerary. Please try again later.",
@@ -180,10 +177,20 @@ def get_all_users(
     return [{"id": u.id, "email": u.email, "is_admin": u.is_admin} for u in users]
 
 
+# --- Health Check Endpoint (For UptimeRobot) ---
 @app.get("/")
-def health_check():
-    return {"status": "online", "message": "DayOutPlanner API is running!"}
-
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    try:
+        # Pings the database to keep the connection warm and prevent auto-pause
+        db.query(UserDB).first()
+        return {"status": "online", "database": "connected", "message": "DayOutPlanner API is running!"}
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"status": "degraded", "database": "error", "detail": str(e)}
+        )
 
 # ==========================================
 # 4. LLM Planner Generator
