@@ -10,7 +10,7 @@ import { useAutoLogout } from "@/hooks/useAutoLogout";
 
 // Fallback to production API and sanitize trailing slashes
 const RAW_API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || "https://dayoutplanner.up.railway.app";
+  process.env.NEXT_PUBLIC_API_BASE || "https://dayoutplanner.onrender.com";
 const API_BASE = RAW_API_BASE.replace(/\/$/, "");
 
 export default function Home() {
