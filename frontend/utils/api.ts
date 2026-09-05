@@ -1,4 +1,4 @@
-const API_BASE = "https://dayoutplanner.up.railway.app";
+const API_BASE = "https://dayoutplanner.onrender.com";
 
 export async function loginUser(email: string, password: string) {
   // FastAPI's OAuth2PasswordRequestForm strictly expects x-www-form-urlencoded
