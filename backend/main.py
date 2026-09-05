@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from auth import (
     UserDB,
@@ -178,12 +179,11 @@ def get_all_users(
 
 
 # --- Health Check Endpoint (For UptimeRobot) ---
-@app.get("/")
-@app.get("/health")
+@app.api_route("/", methods=["GET", "HEAD"])
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check(db: Session = Depends(get_db)):
     try:
-        # Pings the database to keep the connection warm and prevent auto-pause
-        db.query(UserDB).first()
+        db.execute(text("SELECT 1"))
         return {"status": "online", "database": "connected", "message": "DayOutPlanner API is running!"}
     except Exception as e:
         logger.error(f"Health check failed: {e}")
